@@ -1,9 +1,12 @@
 #include<iostream>
 #include<string.h>
-
-
+#include <time.h>
 #include <libmnl/libmnl.h>
 #include <linux/rtnetlink.h>
+#include <linux/netlink.h>
+#include <linux/if_link.h>
+#include <linux/if_addr.h>
+#include <linux/neighbour.h>
 
 
 
@@ -30,6 +33,7 @@ void Network::socket(char *ipType, int nlMsgType) {
 	char buf[MNL_SOCKET_BUFFER_SIZE]; //buffer
 	struct nlmsghdr *nlh; //network link message header
 	struct rtgenmsg *rt;
+	void *rt1;
 	nlh = mnl_nlmsg_put_header(buf);
 	nlh->nlmsg_type	= nlMsgType;//get information about Ip address
 	nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;// flag for request
@@ -37,11 +41,15 @@ void Network::socket(char *ipType, int nlMsgType) {
 	
 	
 	rt = mnl_nlmsg_put_extra_header(nlh, sizeof(struct rtgenmsg));//
+	cout<<"rt----"<<rt1<<endl;
+	cout<<"rt1---"<<rt1<<endl;
+
 	if (strcmp(ipType, "ipv4") == 0)
 		rt->rtgen_family = AF_INET;// setting IPv4
 	else if (strcmp(ipType, "ipv6") == 0)
 		rt->rtgen_family = AF_INET6;// setting IPv6
 
+	cout<<"rtttttt"<<rt;
 	struct mnl_socket *nl; //socket pointer nl
 	
 	nl = mnl_socket_open(NETLINK_ROUTE);//socket opening
@@ -61,19 +69,19 @@ void Network::socket(char *ipType, int nlMsgType) {
 		exit(EXIT_FAILURE);
 	}
 
-	int ret;
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, data_cb, NULL);
-		if (ret <= MNL_CB_STOP)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
+	// int ret;
+	// ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+	// while (ret > 0) {
+	// 	ret = mnl_cb_run(buf, ret, seq, portid, data_cb, NULL);
+	// 	if (ret <= MNL_CB_STOP)
+	// 		break;
+	// 	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+	// }
 
-	if (ret == -1) {
-		perror("error");
-		exit(EXIT_FAILURE);
-	}
+	// if (ret == -1) {
+	// 	perror("error");
+	// 	exit(EXIT_FAILURE);
+	// }
 
 	mnl_socket_close(nl);
 }
@@ -117,7 +125,7 @@ int main(int argc, char *argv[]) {
 
 
 	Network network;
-	// network.ipShow(argv[1]);
+	network.ipShow(argv[1]);
 	// network.ipRouteAdd(argv[1]);
 	// network.ipRouteShow(argv[1]);
 	// network.ipRouteDel(argv[1]);
