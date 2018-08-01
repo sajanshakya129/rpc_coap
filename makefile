@@ -12,9 +12,11 @@ _OBJ=network.o main.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: src/%.cpp $(DEPS)
+	@mkdir -p $(ODIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BIN)/irpc: $(OBJ)
+	@mkdir -p $(BIN)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean

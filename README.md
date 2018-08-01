@@ -33,11 +33,11 @@ make
 sudo make install
 ```
 
-### Compiling 
+### Compiling Program
 ```
-g++ -o output main.cpp -lmnl
+make
 ```
 ### Running command
 ```
-./output ipv4
+./bin/irpc ipv4
 ```
