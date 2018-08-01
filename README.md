@@ -3,10 +3,10 @@ This project is created to implement RPC over UDP using COAP protocol for constr
 
 The project is built and tested on Platform: Ubuntu 18.04 LTS
 
-##Getting started
+## Getting started
 	You can clone or download source code from this git repo.
 
-###Prerequisites
+### Prerequisites
 You need to install some softwares before compiling and running.
 
 #### Installation of g++
