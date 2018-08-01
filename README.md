@@ -19,11 +19,11 @@ Clone the libmnl repo using:
 ```
 git clone git://git.netfilter.org/libmnl
 ```
-Change directory to libmnl and try to run autogen.sh. If you dont have autoreconf installed in your machine install using following command.
+Change directory to libmnl and try to run ./autogen.sh. If you dont have autoreconf installed in your machine, install using following command.
 
 ```
 cd libmnl
-sudo apt install dh-autoreconf // to install autoreconf
+sudo apt install dh-autoreconf 
 ./autogen.sh
 ```
 Now configure and using makefile, install libmnl using following commands
