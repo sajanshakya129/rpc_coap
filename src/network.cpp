@@ -1,6 +1,3 @@
-#ifndef NETWORK_H
-#define NETWORK_H
-
 #include <arpa/inet.h>
 #include <iostream>
 #include <libmnl/libmnl.h>
@@ -11,13 +8,16 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "network.hpp"
+
 using namespace std;
+const int showIpAddrIdentifier=1;
+const int showIpLinksIdentifier=2;
+const int setIpLinkIdentifier=3;
 
-#include "network.h"
+//-------Beginnning of Private Methods------------------------
 
-//-------Beginnning of Private Methods--------------------------------
-
-void Network::socket(char *ipType, int nlMsgType) {
+void Network::socket(char *ipType, int nlMsgType,int cb_func) {
   unsigned int seq, portid;
 
   char buf[MNL_SOCKET_BUFFER_SIZE]; // buffer
@@ -41,17 +41,14 @@ void Network::socket(char *ipType, int nlMsgType) {
     exit(EXIT_FAILURE);
   }
 
-  if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) <
-      0) { // binding socket passing socket pointer  mnl_socket_bind (struct
-           // mnl_socket *nl, unsigned int groups, pid_t pid)
+  if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
     perror("mnl_socket_bind"); // error if socket binding failed
     exit(EXIT_FAILURE);
   }
 
   portid =
       mnl_socket_get_portid(nl); // obtain Netlink PortID from netlink socket
-  if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) <
-      0) { // socket pointer, header, header length
+  if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
     perror("mnl_socket_sendto");
     exit(EXIT_FAILURE);
   }
@@ -59,7 +56,15 @@ void Network::socket(char *ipType, int nlMsgType) {
   int ret;
   ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
   while (ret > 0) {
-    ret = mnl_cb_run(buf, ret, seq, portid, data_cb_ipshow, NULL);
+    switch (cb_func){
+      case 1:
+        ret = mnl_cb_run(buf, ret, seq, portid, data_cb_showIpAddr, NULL);
+        break;
+      case 2:
+        ret = mnl_cb_run(buf, ret, seq, portid, data_cb_showIpLinks, NULL);
+        break;
+    }
+    //ret = mnl_cb_run(buf, ret, seq, portid, data_cb_showIpAddr, NULL);
     if (ret <= MNL_CB_STOP)
       break;
     ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
@@ -73,7 +78,7 @@ void Network::socket(char *ipType, int nlMsgType) {
   mnl_socket_close(nl);
 }
 
-int Network::data_attr_cb_ipshow(const struct nlattr *attr, void *data) {
+int Network::data_attr_cb_showIpAddr(const struct nlattr *attr, void *data) {
   const struct nlattr **tb = (const nlattr **)data;
   int type = mnl_attr_get_type(attr);
 
@@ -92,18 +97,18 @@ int Network::data_attr_cb_ipshow(const struct nlattr *attr, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_cb_ipshow(const struct nlmsghdr *nlh, void *data) {
+int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   char ifrn_name[IFNAMSIZ];
   struct nlattr *tb[IFA_MAX + 1] = {};
   struct ifaddrmsg *ifa = (ifaddrmsg *)mnl_nlmsg_get_payload(nlh);
 
-  mnl_attr_parse(nlh, sizeof(*ifa), data_attr_cb_ipshow, tb);
+  mnl_attr_parse(nlh, sizeof(*ifa), data_attr_cb_showIpAddr, tb);
   cout << "==================================" << endl;
   cout << "Index= " << ifa->ifa_index << endl;
   cout << "Name= " << if_indextoname(ifa->ifa_index, ifrn_name) << endl;
   cout << "Family= " << ((ifa->ifa_family == AF_INET) ? "IPv4" : "IPv6")
        << endl;
-  cout << "Address= ";
+  cout << "IP address= ";
 
   if (tb[IFA_ADDRESS]) {
     void *addr = mnl_attr_get_payload(tb[IFA_ADDRESS]);
@@ -138,7 +143,7 @@ int Network::data_cb_ipshow(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_attr_cb_iplink(const struct nlattr *attr, void *data) {
+int Network::data_attr_cb_showIpLinks(const struct nlattr *attr, void *data) {
   const struct nlattr **tb = (const nlattr **)data;
   int type = mnl_attr_get_type(attr);
 
@@ -170,32 +175,31 @@ int Network::data_attr_cb_iplink(const struct nlattr *attr, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_cb_iplink(const struct nlmsghdr *nlh, void *data) {
+int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   struct nlattr *tb[IFLA_MAX + 1] = {};
   struct ifinfomsg *ifm = (ifinfomsg *)mnl_nlmsg_get_payload(nlh);
-
   cout << "Index=" << ifm->ifi_index << endl;
   cout << "Type=" << ifm->ifi_type << endl;
   cout << "Flags=" << ifm->ifi_flags << endl;
-  cout << "Family=" << ifm->ifi_family << endl;
-
+  cout << "Family=" <<  ((ifm->ifi_family == AF_INET) ? "IPv4" : "IPv6") << endl;
+  cout <<"Status=";
   if (ifm->ifi_flags & IFF_RUNNING)
     cout << "[RUNNING]" << endl;
   else
     cout << "[NOT RUNNING]" << endl;
 
-  mnl_attr_parse(nlh, sizeof(*ifm), data_attr_cb_iplink, tb);
+  mnl_attr_parse(nlh, sizeof(*ifm), data_attr_cb_showIpLinks, tb);
   if (tb[IFLA_MTU]) {
-    cout << "mtu=" << mnl_attr_get_u32(tb[IFLA_MTU]) << endl;
+    cout << "MTU=" << mnl_attr_get_u32(tb[IFLA_MTU]) << endl;
   }
   if (tb[IFLA_IFNAME]) {
-    cout << "name=" << mnl_attr_get_str(tb[IFLA_IFNAME]) << endl;
+    cout << "Name=" << mnl_attr_get_str(tb[IFLA_IFNAME]) << endl;
   }
   if (tb[IFLA_ADDRESS]) {
     uint8_t *hwaddr = (uint8_t *)mnl_attr_get_payload(tb[IFLA_ADDRESS]);
     int i;
 
-    cout << "hwaddr=";
+    cout << "MAC Address=";
     for (i = 0; i < mnl_attr_get_payload_len(tb[IFLA_ADDRESS]); i++) {
       printf("%.2x", hwaddr[i] & 0xff);
       if (i + 1 != mnl_attr_get_payload_len(tb[IFLA_ADDRESS]))
@@ -203,20 +207,30 @@ int Network::data_cb_iplink(const struct nlmsghdr *nlh, void *data) {
     }
   }
   cout << "\n" << endl;
+  cout<<"===================================================="<<endl;
   return MNL_CB_OK;
 }
 
 //------End of Private  Functions------------------
 
 //-----Start of Public Functions-------------------
-void Network::ipShow(char *ipType) {
-  cout << "inside ip show" << endl;
-  socket(ipType, RTM_GETADDR);
+void Network::showIpAddr(char *ipType) {//dumps ipaddress either of IPv4 and IPv6 family
+  socket(ipType, RTM_GETADDR,showIpAddrIdentifier);
 }
 
-// void Network::ipLink(char *ipType) {
-// 	cout << "inside ip link" << endl;
-// 	socket(ipType,RTM_GETLINK);
+void Network::showIpLinks(char *ipType) {//dumps ip links with name, MTU, MAC, status 
+	socket(ipType,RTM_GETLINK,showIpLinksIdentifier);
+}
+
+void Network::setIpLink(char *ipType) {// for setting up/down IP link
+  socket(ipType,RTM_GETLINK,setIpLinkIdentifier);
+}
+
+
+
+// void Network::ipRouteShow(char *ipType) {
+//   cout << "inside ipRouteShow" << endl;
+//   socket(ipType,RTM_GETLINK,IpRouteShowIdentifier);
 // }
 
 // void Network::ipRouteAdd(char *ipType) {
@@ -225,11 +239,7 @@ void Network::ipShow(char *ipType) {
 // 	socket(ipType,msgtype);
 // }
 
-// void Network::ipRouteShow(char *ipType) {
-// 	cout << "inside ipRouteShow" << endl;
-// 	int msgtype=RTM_GETADDR;
-// 	socket(ipType,msgtype);
-// }
+
 
 // void Network::ipRouteDel(char *ipType) {
 // 	cout << "inside ipRouteDel" << endl;
@@ -237,7 +247,4 @@ void Network::ipShow(char *ipType) {
 // 	socket(ipType,msgtype);
 // }
 
-//-------------------------------------------------------End of Public
-// Functions----------------------------------------
-
-#endif
+//----End of Public Functions--------------------

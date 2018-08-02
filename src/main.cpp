@@ -1,15 +1,13 @@
 #include <iostream>
 
-#include "network.h"
+#include "network.hpp"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
 
   cout << "Program initiating" << endl;
-  cout << "number of Argument:" << argc << endl;
-  cout << "first argument:" << argv[0] << endl;
-  cout << "Second argument:" << argv[1] << endl;
+ 
   if (argc != 2) {
     cerr << "Usage:" << argv[0] << " <ipv4|ipv6>" << endl;
     exit(EXIT_FAILURE);
@@ -17,8 +15,8 @@ int main(int argc, char *argv[]) {
 
 
   Network network;
-  network.ipShow(argv[1]);
-  // network.ipLink(argv[1]);
+  network.showIpAddr(argv[1]);
+  network.showIpLinks(argv[1]);
   // network.ipRouteAdd(argv[1]);
   // network.ipRouteShow(argv[1]);
   // network.ipRouteDel(argv[1]);

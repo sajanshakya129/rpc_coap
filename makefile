@@ -5,7 +5,7 @@ ODIR=obj
 LIBS=-lmnl
 BIN=./bin
 
-_DEPS = network.h
+_DEPS = network.hpp 
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ=network.o main.o
