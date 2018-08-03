@@ -38,6 +38,16 @@ sudo make install
 make
 ```
 ### Running command
+
+For syntax:
 ```
-./bin/irpc ipv4
+./bin/irpc help
+```
+To see IP configuration:
+```
+./bin/irpc ipshow [-f] <ipv4|ipv6>
+```
+To see IP links:
+```
+./bin/irpc iplink [-f] <ipv4|ipv6>
 ```

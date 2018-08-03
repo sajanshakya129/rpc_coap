@@ -5,7 +5,7 @@ ODIR=obj
 LIBS=-lmnl
 BIN=./bin
 
-_DEPS = network.hpp 
+_DEPS = network.hpp clipp.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ=network.o main.o
