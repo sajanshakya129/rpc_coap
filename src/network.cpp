@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <functional>
 #include <iostream>
 #include <libmnl/libmnl.h>
 #include <linux/if_link.h>
@@ -9,18 +10,20 @@
 #include <unistd.h>
 
 #include "network.hpp"
+#include "iproute.hpp"
 
 using namespace std;
 const int showIpAddrIdentifier = 1;
 const int showIpLinksIdentifier = 2;
 const int setIpLinkIdentifier = 3;
+const int showIpRouteIdentifier = 4;
 
 //-------Beginnning of Private Methods------------------------
-
+// function used by showIpAddr, showIpLinks, show ipRoute
 void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
-                     const char *devName,string state) {
+                     bool msgFmt) {
   unsigned int seq, portid;
-
+  IProute iproute;
   char buf[MNL_SOCKET_BUFFER_SIZE]; // buffer
   struct nlmsghdr *nlh;             // network link header
 
@@ -29,18 +32,12 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   nlh->nlmsg_flags = flags;    // flag for request
   nlh->nlmsg_seq = seq = time(NULL);
 
-  if ((cbFuncIden == showIpAddrIdentifier) ||
-      (cbFuncIden == showIpLinksIdentifier)) {
-    struct rtgenmsg *rt;
-    rt =
-        (rtgenmsg *)mnl_nlmsg_put_extra_header(nlh, sizeof(struct rtgenmsg)); //
-    if (ipType.compare("ipv4") == 0)
-      rt->rtgen_family = AF_INET; // setting IPv4
-    else if (ipType.compare("ipv6") == 0)
-      rt->rtgen_family = AF_INET6; // setting IPv6
-  } else if (cbFuncIden == setIpLinkIdentifier) {
-    mnl_attr_put_str(nlh, IFLA_IFNAME, devName);
-  }
+  struct rtgenmsg *rt;
+  rt = (rtgenmsg *)mnl_nlmsg_put_extra_header(nlh, sizeof(struct rtgenmsg)); //
+  if (ipType.compare("ipv4") == 0)
+    rt->rtgen_family = AF_INET; // setting IPv4
+  else if (ipType.compare("ipv6") == 0)
+    rt->rtgen_family = AF_INET6; // setting IPv6
 
   struct mnl_socket *nl;               // socket pointer nl
   nl = mnl_socket_open(NETLINK_ROUTE); // socket opening
@@ -55,6 +52,8 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   }
 
   portid = mnl_socket_get_portid(nl);
+  if (msgFmt)
+    mnl_nlmsg_fprintf(stdout, nlh, nlh->nlmsg_len, sizeof(struct ifinfomsg));
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
     perror("mnl_socket_sendto");
@@ -63,28 +62,103 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
 
   int ret;
   ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+  mnl_cb_t cb_func;
   while (ret > 0) {
     switch (cbFuncIden) {
     case 1:
-      ret = mnl_cb_run(buf, ret, seq, portid, data_cb_showIpAddr, NULL);
+      cb_func=&data_cb_showIpAddr;
       break;
     case 2:
-      ret = mnl_cb_run(buf, ret, seq, portid, data_cb_showIpLinks, NULL);
+      cb_func=&data_cb_showIpLinks;
       break;
+    case 4:
+      cb_func=&iproute.data_cb_showIproutes;
     }
+    ret = mnl_cb_run(buf, ret, seq, portid, cb_func, NULL);
     if (ret <= MNL_CB_STOP)
       break;
     ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
   }
 
-  if (cbFuncIden == 3){
-    ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-    //data_cb_setiplink(nlh,state);
-  }
-
   if (ret == -1) {
     perror("error");
     exit(EXIT_FAILURE);
+  }
+
+  mnl_socket_close(nl);
+}
+// Function overloaded used by setIpLink function
+// TODO:break socket function into small functions, find common between two
+// functions overloaded
+void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
+                     const char *devName, string linkState, bool msgFmt) {
+  struct mnl_socket *nl;
+  unsigned int seq, portid, change = 0, flags = 0;
+
+  if (linkState.compare("up") == 0) {
+    change |= IFF_UP;
+    flags |= IFF_UP;
+  } else if (linkState.compare("down") == 0) {
+    change |= IFF_UP;
+    flags &= ~IFF_UP;
+  } else {
+    cout << stderr << devName << " is not `up' nor `down'\n" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  struct nlmsghdr *nlh;
+  char buf[MNL_SOCKET_BUFFER_SIZE];
+
+  nlh = mnl_nlmsg_put_header(buf);
+  nlh->nlmsg_type = nlMsgType;
+  nlh->nlmsg_flags = reqFlags;
+  nlh->nlmsg_seq = seq = time(NULL);
+
+  struct ifinfomsg *ifm;
+
+  ifm = (ifinfomsg *)mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+  ifm->ifi_family = AF_UNSPEC;
+  ifm->ifi_change = change;
+  ifm->ifi_flags = flags;
+
+  mnl_attr_put_str(nlh, IFLA_IFNAME, devName);
+  nl = mnl_socket_open(NETLINK_ROUTE);
+  if (nl == NULL) {
+    perror("mnl_socket_open");
+    exit(EXIT_FAILURE);
+  }
+
+  if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+    perror("mnl_socket_bind");
+    exit(EXIT_FAILURE);
+  }
+  portid = mnl_socket_get_portid(nl);
+  if (msgFmt)
+    mnl_nlmsg_fprintf(stdout, nlh, nlh->nlmsg_len, sizeof(struct ifinfomsg));
+
+  if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
+    perror("mnl_socket_sendto");
+    exit(EXIT_FAILURE);
+  }
+
+  int ret;
+
+  ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+  if (ret == -1) {
+    perror("mnl_socket_recvfrom");
+    exit(EXIT_FAILURE);
+  }
+
+  ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
+  if (ret == -1) {
+    perror("Operation Error");
+    cout << "You need to have Administrative privilege to execute this "
+            "command. Try with \'sudo\'"
+         << endl;
+    exit(EXIT_FAILURE);
+  } else if (ret == 0) {
+    cout << "SUCCESS:State of " << devName << " has been changed to "
+         << linkState << endl;
   }
 
   mnl_socket_close(nl);
@@ -109,6 +183,36 @@ int Network::data_attr_cb_showIpAddr(const struct nlattr *attr, void *data) {
   return MNL_CB_OK;
 }
 
+int Network::data_attr_cb_showIpLinks(const struct nlattr *attr, void *data) {
+  const struct nlattr **tb = (const nlattr **)data;
+  int type = mnl_attr_get_type(attr);
+
+  if (mnl_attr_type_valid(attr, IFLA_MAX) < 0)
+    return MNL_CB_OK;
+
+  switch (type) {
+  case IFLA_ADDRESS:
+    if (mnl_attr_validate(attr, MNL_TYPE_BINARY) < 0) {
+      perror("mnl_attr_validate");
+      return MNL_CB_ERROR;
+    }
+    break;
+  case IFLA_MTU:
+    if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+      perror("mnl_attr_validate");
+      return MNL_CB_ERROR;
+    }
+    break;
+  case IFLA_IFNAME:
+    if (mnl_attr_validate(attr, MNL_TYPE_STRING) < 0) {
+      perror("mnl_attr_validate");
+      return MNL_CB_ERROR;
+    }
+    break;
+  }
+  tb[type] = attr;
+  return MNL_CB_OK;
+}
 int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   char ifrn_name[IFNAMSIZ];
   struct nlattr *tb[IFA_MAX + 1] = {};
@@ -154,38 +258,6 @@ int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_attr_cb_showIpLinks(const struct nlattr *attr, void *data) {
-  const struct nlattr **tb = (const nlattr **)data;
-  int type = mnl_attr_get_type(attr);
-
-  /* skip unsupported attribute in user-space */
-  if (mnl_attr_type_valid(attr, IFLA_MAX) < 0)
-    return MNL_CB_OK;
-
-  switch (type) {
-  case IFLA_ADDRESS:
-    if (mnl_attr_validate(attr, MNL_TYPE_BINARY) < 0) {
-      perror("mnl_attr_validate");
-      return MNL_CB_ERROR;
-    }
-    break;
-  case IFLA_MTU:
-    if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
-      perror("mnl_attr_validate");
-      return MNL_CB_ERROR;
-    }
-    break;
-  case IFLA_IFNAME:
-    if (mnl_attr_validate(attr, MNL_TYPE_STRING) < 0) {
-      perror("mnl_attr_validate");
-      return MNL_CB_ERROR;
-    }
-    break;
-  }
-  tb[type] = attr;
-  return MNL_CB_OK;
-}
-
 int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   struct nlattr *tb[IFLA_MAX + 1] = {};
   struct ifinfomsg *ifm = (ifinfomsg *)mnl_nlmsg_get_payload(nlh);
@@ -222,45 +294,30 @@ int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_cb_setiplink(struct nlmsghdr *nlh, string state) {
-  struct ifinfomsg *ifm;
-  unsigned int change = 0, flags = 0;
-  if (state.compare("up") == 0) {
-    change |= IFF_UP;
-    flags |= IFF_UP;
-  } else if (state.compare("down") == 0) {
-    change |= IFF_UP;
-    flags &= ~IFF_UP;
-  } else {
-    cout<<stderr<<state<<" is not `up' nor `down'\n"<<endl;
-    exit(EXIT_FAILURE);
-  }
 
-  ifm =(ifinfomsg*) mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
-  ifm->ifi_family = AF_UNSPEC;
-  ifm->ifi_change = change;
-  ifm->ifi_flags = flags;
-  mnl_nlmsg_fprintf(stdout, nlh, nlh->nlmsg_len, sizeof(struct ifinfomsg));
-}
 //------End of Private  Functions------------------
 
 //-----Start of Public Functions-------------------
-void Network::showIpAddr(string ipType) {
+void Network::showIpAddr(string ipType, bool msgFmt) {
   socket(ipType, RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, showIpAddrIdentifier,
-         "","");
+         msgFmt);
 }
 
-void Network::showIpLinks(string ipType) {
+void Network::showIpLinks(string ipType, bool msgFmt) {
   socket(ipType, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP, showIpLinksIdentifier,
-         "","");
+         msgFmt);
 }
 
-void Network::setIpLink(string linkName, string linkState) {
-  const char *lName = linkName.c_str(); // for setting up/down IP link
-  socket("", RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, setIpLinkIdentifier,
-         lName,linkState);
+void Network::setIpLink(string linkName, string linkState, bool msgFmt) {
+  const char *lName = linkName.c_str();
+  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, setIpLinkIdentifier, lName,
+         linkState, msgFmt);
 }
 
+void Network::showIpRoute(string ipType, bool msgFmt) {
+  socket(ipType, RTM_GETROUTE, NLM_F_REQUEST | NLM_F_DUMP,
+         showIpRouteIdentifier, msgFmt);
+}
 // void Network::ipRouteShow(char *ipType) {
 //   cout << "inside ipRouteShow" << endl;
 //   socket(ipType,RTM_GETLINK,IpRouteShowIdentifier);
