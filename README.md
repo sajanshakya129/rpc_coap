@@ -51,3 +51,12 @@ To see IP links:
 ```
 ./bin/irpc iplink [-f] <ipv4|ipv6>
 ```
+To set UP/Down IP link:
+```
+sudo ./bin/irpc setlink -n <name of device> -s <ip/down>
+```
+To see IP routes:
+```
+sudo ./bin/irpc showiproute --msgformat
+```
+***Note**:--msgformat with any command will show format of message

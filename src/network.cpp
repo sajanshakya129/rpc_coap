@@ -1,35 +1,33 @@
 #include <arpa/inet.h>
-#include <functional>
 #include <iostream>
 #include <libmnl/libmnl.h>
-#include <linux/if_link.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
-#include "network.hpp"
 #include "iproute.hpp"
+#include "network.hpp"
 
 using namespace std;
+// identiers for main functions
 const int showIpAddrIdentifier = 1;
 const int showIpLinksIdentifier = 2;
 const int setIpLinkIdentifier = 3;
 const int showIpRouteIdentifier = 4;
 
 //-------Beginnning of Private Methods------------------------
-// function used by showIpAddr, showIpLinks, show ipRoute
+// function used by showIpAddr, showIpLinks, showIpRoute
 void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
                      bool msgFmt) {
   unsigned int seq, portid;
   IProute iproute;
-  char buf[MNL_SOCKET_BUFFER_SIZE]; // buffer
-  struct nlmsghdr *nlh;             // network link header
+  char buf[MNL_SOCKET_BUFFER_SIZE];
+  struct nlmsghdr *nlh;
 
   nlh = mnl_nlmsg_put_header(buf);
-  nlh->nlmsg_type = nlMsgType; // get information about Ip address
-  nlh->nlmsg_flags = flags;    // flag for request
+  nlh->nlmsg_type = nlMsgType;
+  nlh->nlmsg_flags = flags;
   nlh->nlmsg_seq = seq = time(NULL);
 
   struct rtgenmsg *rt;
@@ -39,8 +37,8 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   else if (ipType.compare("ipv6") == 0)
     rt->rtgen_family = AF_INET6; // setting IPv6
 
-  struct mnl_socket *nl;               // socket pointer nl
-  nl = mnl_socket_open(NETLINK_ROUTE); // socket opening
+  struct mnl_socket *nl;
+  nl = mnl_socket_open(NETLINK_ROUTE);
   if (nl == NULL) {
     perror("mnl_socket_open");
     exit(EXIT_FAILURE);
@@ -52,7 +50,7 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   }
 
   portid = mnl_socket_get_portid(nl);
-  if (msgFmt)
+  if (msgFmt) // if --msgFormat is used in command
     mnl_nlmsg_fprintf(stdout, nlh, nlh->nlmsg_len, sizeof(struct ifinfomsg));
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
@@ -64,15 +62,15 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
   mnl_cb_t cb_func;
   while (ret > 0) {
-    switch (cbFuncIden) {
+    switch (cbFuncIden) { // switching callback functions
     case 1:
-      cb_func=&data_cb_showIpAddr;
+      cb_func = &data_cb_showIpAddr;
       break;
     case 2:
-      cb_func=&data_cb_showIpLinks;
+      cb_func = &data_cb_showIpLinks;
       break;
     case 4:
-      cb_func=&iproute.data_cb_showIproutes;
+      cb_func = &iproute.data_cb_showIproutes;
     }
     ret = mnl_cb_run(buf, ret, seq, portid, cb_func, NULL);
     if (ret <= MNL_CB_STOP)
@@ -87,9 +85,10 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
 
   mnl_socket_close(nl);
 }
-// Function overloaded used by setIpLink function
-// TODO:break socket function into small functions, find common between two
-// functions overloaded
+/** Function overloaded used by setIpLink function
+    TODO:break socket function into small functions, find common between two
+    socket functions overloaded
+    **/
 void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
                      const char *devName, string linkState, bool msgFmt) {
   struct mnl_socket *nl;
@@ -133,7 +132,7 @@ void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
     exit(EXIT_FAILURE);
   }
   portid = mnl_socket_get_portid(nl);
-  if (msgFmt)
+  if (msgFmt) // if --msgFormat is used in command
     mnl_nlmsg_fprintf(stdout, nlh, nlh->nlmsg_len, sizeof(struct ifinfomsg));
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
@@ -151,10 +150,11 @@ void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
 
   ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
   if (ret == -1) {
-    perror("Operation Error");
-    cout << "You need to have Administrative privilege to execute this "
+    cout << "Note:You might need to have Administrative privilege to execute "
+            "this "
             "command. Try with \'sudo\'"
          << endl;
+    perror("Operation Error");
     exit(EXIT_FAILURE);
   } else if (ret == 0) {
     cout << "SUCCESS:State of " << devName << " has been changed to "
@@ -164,6 +164,7 @@ void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
   mnl_socket_close(nl);
 }
 
+/*Function to validate attribute of callback responses of showIpAddr*/
 int Network::data_attr_cb_showIpAddr(const struct nlattr *attr, void *data) {
   const struct nlattr **tb = (const nlattr **)data;
   int type = mnl_attr_get_type(attr);
@@ -183,6 +184,7 @@ int Network::data_attr_cb_showIpAddr(const struct nlattr *attr, void *data) {
   return MNL_CB_OK;
 }
 
+/*Function to validate attribute of callback responses of showIpLinks*/
 int Network::data_attr_cb_showIpLinks(const struct nlattr *attr, void *data) {
   const struct nlattr **tb = (const nlattr **)data;
   int type = mnl_attr_get_type(attr);
@@ -213,6 +215,9 @@ int Network::data_attr_cb_showIpLinks(const struct nlattr *attr, void *data) {
   tb[type] = attr;
   return MNL_CB_OK;
 }
+
+/*Call back function for showing Ip address
+  to be passed to mnl_cb_run() inside socket*/
 int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   char ifrn_name[IFNAMSIZ];
   struct nlattr *tb[IFA_MAX + 1] = {};
@@ -258,6 +263,8 @@ int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
+/*Call back function for showing IP Links
+  to be passed to mnl_cb_run() inside socket*/
 int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   struct nlattr *tb[IFLA_MAX + 1] = {};
   struct ifinfomsg *ifm = (ifinfomsg *)mnl_nlmsg_get_payload(nlh);
@@ -294,10 +301,10 @@ int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
-
 //------End of Private  Functions------------------
 
 //-----Start of Public Functions-------------------
+
 void Network::showIpAddr(string ipType, bool msgFmt) {
   socket(ipType, RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, showIpAddrIdentifier,
          msgFmt);
@@ -318,21 +325,4 @@ void Network::showIpRoute(string ipType, bool msgFmt) {
   socket(ipType, RTM_GETROUTE, NLM_F_REQUEST | NLM_F_DUMP,
          showIpRouteIdentifier, msgFmt);
 }
-// void Network::ipRouteShow(char *ipType) {
-//   cout << "inside ipRouteShow" << endl;
-//   socket(ipType,RTM_GETLINK,IpRouteShowIdentifier);
-// }
-
-// void Network::ipRouteAdd(char *ipType) {
-// 	cout << "inside ipRouteAdd" << endl;
-// 	int msgtype=RTM_GETADDR;
-// 	socket(ipType,msgtype);
-// }
-
-// void Network::ipRouteDel(char *ipType) {
-// 	cout << "inside ipRouteDel" << endl;
-// 	int msgtype=RTM_GETADDR;
-// 	socket(ipType,msgtype);
-// }
-
 //----End of Public Functions--------------------
