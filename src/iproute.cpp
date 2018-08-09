@@ -10,7 +10,6 @@ using namespace std;
 /*Function to convert IPv6 addresses from binary to text form*/
 static const char *inet6_ntoa(struct in6_addr in6) {
   static char buf[INET6_ADDRSTRLEN];
-
   return inet_ntop(AF_INET6, &in6.s6_addr, buf, sizeof(buf));
 }
 
@@ -190,7 +189,7 @@ int IProute::data_ipv6_attr_cb(const struct nlattr *attr, void *data) {
   return MNL_CB_OK;
 }
 
-//Callback function for show IP routes
+// Callback function for show IP routes
 int IProute::data_cb_showIproutes(const struct nlmsghdr *nlh, void *data) {
   struct nlattr *tb[RTA_MAX + 1] = {};
   struct rtmsg *rm = (rtmsg *)mnl_nlmsg_get_payload(nlh);

@@ -21,14 +21,12 @@ int main(int argc, char *argv[]) {
   bool msgFmt = false;
 
   /*CLI definations */
-  mode selected = mode::help;
+  mode selected = mode::help; // default
   auto ipShowMode = (command("ipshow").set(selected, mode::ipshow),
                      (option("-f", "--family") & value("ipv4|ipv6", IP_TYPE)) %
                          "Specify family ipv4 or ipv6, default is ipv4");
 
-  auto ipLinkMode = (command("iplink").set(selected, mode::iplink),
-                     (option("-f", "--family") & value("ipv4|ipv6", IP_TYPE)) %
-                         "Specify family ipv4 or ipv6, default is ipv4");
+  auto ipLinkMode = (command("iplink").set(selected, mode::iplink));
 
   auto setLinkMode =
       (command("setlink").set(selected, mode::setlink),
@@ -40,10 +38,11 @@ int main(int argc, char *argv[]) {
   auto ipRouteMode = (command("showiproute").set(selected, mode::showiproute),
                       (option("-f", "--family") & value("ipv4|ipv6", IP_TYPE)) %
                           "Specify family ipv4 or ipv6, default is ipv4");
-
+  
   auto helpMode = (command("help").set(selected, mode::help));
 
-  auto cli = ((ipShowMode | ipLinkMode | setLinkMode | ipRouteMode | helpMode),
+  auto cli = ((ipShowMode | ipLinkMode | setLinkMode | ipRouteMode |
+               helpMode),
               option("--msgformat").set(msgFmt) % "shows message Format",
               option("-v", "--version")
                   .call([] { cout << "version 0.0.1\n\n"; })

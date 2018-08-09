@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <libmnl/libmnl.h>
+#include <linux/if_link.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
 #include <time.h>
@@ -10,11 +11,13 @@
 #include "network.hpp"
 
 using namespace std;
-// identiers for main functions
-const int showIpAddrIdentifier = 1;
-const int showIpLinksIdentifier = 2;
-const int setIpLinkIdentifier = 3;
-const int showIpRouteIdentifier = 4;
+// identifiers for main functions
+enum cb_identifier {
+  SHOW_IP_ADDR = 1,
+  SHOW_IP_LINK,
+  SET_IP_LINK,
+  SHOW_IP_ROUTE
+} iden;
 
 //-------Beginnning of Private Methods------------------------
 // function used by showIpAddr, showIpLinks, showIpRoute
@@ -63,13 +66,13 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
   mnl_cb_t cb_func;
   while (ret > 0) {
     switch (cbFuncIden) { // switching callback functions
-    case 1:
+    case SHOW_IP_ADDR:
       cb_func = &data_cb_showIpAddr;
       break;
-    case 2:
+    case SHOW_IP_LINK:
       cb_func = &data_cb_showIpLinks;
       break;
-    case 4:
+    case SHOW_IP_ROUTE:
       cb_func = &iproute.data_cb_showIproutes;
     }
     ret = mnl_cb_run(buf, ret, seq, portid, cb_func, NULL);
@@ -263,6 +266,12 @@ int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
+int Network::data_cb_showIfconfig(const struct nlmsghdr *nlh, void *data) {
+  struct nlattr *tb[IFA_MAX + 1] = {};
+  struct ifaddrmsg *ifa = (ifaddrmsg *)mnl_nlmsg_get_payload(nlh);
+  mnl_attr_parse(nlh, sizeof(*ifa), data_attr_cb_showIpAddr, tb);
+}
+
 /*Call back function for showing IP Links
   to be passed to mnl_cb_run() inside socket*/
 int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
@@ -271,7 +280,6 @@ int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
   cout << "Index=" << ifm->ifi_index << endl;
   cout << "Type=" << ifm->ifi_type << endl;
   cout << "Flags=" << ifm->ifi_flags << endl;
-  cout << "Family=" << ((ifm->ifi_family == AF_INET) ? "IPv4" : "IPv6") << endl;
   cout << "Status=";
   if (ifm->ifi_flags & IFF_RUNNING)
     cout << "[RUNNING]" << endl;
@@ -306,23 +314,22 @@ int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
 //-----Start of Public Functions-------------------
 
 void Network::showIpAddr(string ipType, bool msgFmt) {
-  socket(ipType, RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, showIpAddrIdentifier,
-         msgFmt);
+  socket(ipType, RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, SHOW_IP_ADDR, msgFmt);
 }
 
 void Network::showIpLinks(string ipType, bool msgFmt) {
-  socket(ipType, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP, showIpLinksIdentifier,
-         msgFmt);
+  socket(ipType, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP, SHOW_IP_LINK, msgFmt);
 }
 
 void Network::setIpLink(string linkName, string linkState, bool msgFmt) {
   const char *lName = linkName.c_str();
-  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, setIpLinkIdentifier, lName,
-         linkState, msgFmt);
+  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, SET_IP_LINK, lName, linkState,
+         msgFmt);
 }
 
 void Network::showIpRoute(string ipType, bool msgFmt) {
-  socket(ipType, RTM_GETROUTE, NLM_F_REQUEST | NLM_F_DUMP,
-         showIpRouteIdentifier, msgFmt);
+  socket(ipType, RTM_GETROUTE, NLM_F_REQUEST | NLM_F_DUMP, SHOW_IP_ROUTE,
+         msgFmt);
 }
+
 //----End of Public Functions--------------------
