@@ -92,8 +92,7 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
     TODO:break socket function into small functions, find common between two
     socket functions overloaded
     **/
-void Network::socket(int nlMsgType, int reqFlags, int cbFuncIden,
-                     const char *devName, string linkState, bool msgFmt) {
+void Network::socket(int nlMsgType, int reqFlags,const char *devName, string linkState, bool msgFmt) {
   struct mnl_socket *nl;
   unsigned int seq, portid, change = 0, flags = 0;
 
@@ -266,12 +265,6 @@ int Network::data_cb_showIpAddr(const struct nlmsghdr *nlh, void *data) {
   return MNL_CB_OK;
 }
 
-int Network::data_cb_showIfconfig(const struct nlmsghdr *nlh, void *data) {
-  struct nlattr *tb[IFA_MAX + 1] = {};
-  struct ifaddrmsg *ifa = (ifaddrmsg *)mnl_nlmsg_get_payload(nlh);
-  mnl_attr_parse(nlh, sizeof(*ifa), data_attr_cb_showIpAddr, tb);
-}
-
 /*Call back function for showing IP Links
   to be passed to mnl_cb_run() inside socket*/
 int Network::data_cb_showIpLinks(const struct nlmsghdr *nlh, void *data) {
@@ -323,7 +316,7 @@ void Network::showIpLinks(string ipType, bool msgFmt) {
 
 void Network::setIpLink(string linkName, string linkState, bool msgFmt) {
   const char *lName = linkName.c_str();
-  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, SET_IP_LINK, lName, linkState,
+  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, lName, linkState,
          msgFmt);
 }
 

@@ -1,6 +1,6 @@
 IDIR=./include
 CC=g++
-CFLAGS=-I$(IDIR)
+CFLAGS=-I$(IDIR) -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
 ODIR=obj
 LIBS=-lmnl
 BIN=./bin
