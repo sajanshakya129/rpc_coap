@@ -1,0 +1,22 @@
+{
+	server:
+	{
+		address:<server address>
+		port:<port no>
+		family:INET|INET6
+
+	},
+	destination:
+	{
+		address:<server address>
+		port:<port no>
+		family:INET|INET6
+	},
+	apiName:eg  /helloMessage,
+	server_uri:coap://<server.address>:<server.port_no>+apiName,
+				eg->coap://10.0.0.12:5863/helloMessage
+	header:{
+		type:COAP_MESSAGE_CON,
+		id:coap_new_message_id(ctx),
+		code: (GET=1)//method numbers
+	}

@@ -1,14 +1,14 @@
-IDIR=./include
-CC=g++
-CFLAGS=-I$(IDIR) -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
+IDIR=./include  /usr/local/include/coap/
+CC=g++ 
+CFLAGS=-I$(IDIR) -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic -O2 -D_GNU_SOURCE -DWITH_POSIX
 ODIR=obj
-LIBS=-lmnl
+LIBS=-lmnl -lcoap-1
 BIN=./bin
 
-_DEPS = network.hpp iproute.hpp clipp.h
+_DEPS = network.hpp iproute.hpp clipp.h 
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ=network.o iproute.o main.o
+_OBJ=network.o iproute.o main.o 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: src/%.cpp $(DEPS)
@@ -18,6 +18,7 @@ $(ODIR)/%.o: src/%.cpp $(DEPS)
 $(BIN)/irpc: $(OBJ)
 	@mkdir -p $(BIN)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+
 
 .PHONY: clean
 

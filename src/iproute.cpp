@@ -1,10 +1,13 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <libmnl/libmnl.h>
+#include <linux/if_link.h>
 #include <linux/rtnetlink.h>
+#include <net/if.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "iproute.hpp"
-#include "network.hpp"
 
 using namespace std;
 /*Function to convert IPv6 addresses from binary to text form*/
@@ -32,32 +35,32 @@ int IProute::data_attr_cb_showIpRoute(const struct nlattr *attr, void *data) {
 /*Function to display attributes if address family is ipv4*/
 void IProute::display_attr_ipv4(struct nlattr *tb[]) {
   if (tb[RTA_TABLE]) {
-    cout << "Table= " << mnl_attr_get_u32(tb[RTA_TABLE]) << endl;
+    cout << "\tTable= " << mnl_attr_get_u32(tb[RTA_TABLE]);
   }
   if (tb[RTA_DST]) {
     struct in_addr *addr = (in_addr *)mnl_attr_get_payload(tb[RTA_DST]);
-    cout << "Dst= " << inet_ntoa(*addr) << endl;
+    cout << "\tDst= " << inet_ntoa(*addr);
   }
   if (tb[RTA_SRC]) {
     struct in_addr *addr = (in_addr *)mnl_attr_get_payload(tb[RTA_SRC]);
-    cout << "Src= " << inet_ntoa(*addr) << endl;
+    cout << "\tSrc= " << inet_ntoa(*addr);
   }
   if (tb[RTA_OIF]) {
-    cout << "OIF= " << mnl_attr_get_u32(tb[RTA_OIF]) << endl;
+    cout << "\tOIF= " << mnl_attr_get_u32(tb[RTA_OIF]);
   }
   if (tb[RTA_FLOW]) {
-    cout << "Flow= " << mnl_attr_get_u32(tb[RTA_FLOW]) << endl;
+    cout << "\tFlow= " << mnl_attr_get_u32(tb[RTA_FLOW]);
   }
   if (tb[RTA_PREFSRC]) {
     struct in_addr *addr = (in_addr *)mnl_attr_get_payload(tb[RTA_PREFSRC]);
-    cout << "Prefsrc= " << inet_ntoa(*addr) << endl;
+    cout << "\tPrefsrc= " << inet_ntoa(*addr);
   }
   if (tb[RTA_GATEWAY]) {
     struct in_addr *addr = (in_addr *)mnl_attr_get_payload(tb[RTA_GATEWAY]);
-    cout << "gw= " << inet_ntoa(*addr) << endl;
+    cout << "\tgw= " << inet_ntoa(*addr);
   }
   if (tb[RTA_PRIORITY]) {
-    cout << "Prio= " << mnl_attr_get_u32(tb[RTA_PRIORITY]) << endl;
+    cout << "\tPrio= " << mnl_attr_get_u32(tb[RTA_PRIORITY]);
   }
   if (tb[RTA_METRICS]) {
     int i;
@@ -67,7 +70,7 @@ void IProute::display_attr_ipv4(struct nlattr *tb[]) {
 
     for (i = 0; i < RTAX_MAX; i++) {
       if (tbx[i]) {
-        cout << "Metrics[" << i << "]=" << mnl_attr_get_u32(tbx[i]) << endl;
+        cout << "\tMetrics[" << i << "]=" << mnl_attr_get_u32(tbx[i]);
       }
     }
   }
@@ -76,32 +79,32 @@ void IProute::display_attr_ipv4(struct nlattr *tb[]) {
 /*Function to display attributes if address family is ipv6*/
 void IProute::display_attr_ipv6(struct nlattr *tb[]) {
   if (tb[RTA_TABLE]) {
-    cout << "Table= " << mnl_attr_get_u32(tb[RTA_TABLE]) << endl;
+    cout << "\tTable= " << mnl_attr_get_u32(tb[RTA_TABLE]);
   }
   if (tb[RTA_DST]) {
     struct in6_addr *addr = (in6_addr *)mnl_attr_get_payload(tb[RTA_DST]);
-    cout << "Dst= " << inet6_ntoa(*addr) << endl;
+    cout << "\tDst= " << inet6_ntoa(*addr);
   }
   if (tb[RTA_SRC]) {
     struct in6_addr *addr = (in6_addr *)mnl_attr_get_payload(tb[RTA_SRC]);
-    cout << "Src= " << inet6_ntoa(*addr) << endl;
+    cout << "\tSrc= " << inet6_ntoa(*addr);
   }
   if (tb[RTA_OIF]) {
-    cout << "OIF= " << mnl_attr_get_u32(tb[RTA_OIF]) << endl;
+    cout << "\tOIF= " << mnl_attr_get_u32(tb[RTA_OIF]);
   }
   if (tb[RTA_FLOW]) {
-    cout << "Flow= " << mnl_attr_get_u32(tb[RTA_FLOW]) << endl;
+    cout << "\tFlow= " << mnl_attr_get_u32(tb[RTA_FLOW]);
   }
   if (tb[RTA_PREFSRC]) {
     struct in6_addr *addr = (in6_addr *)mnl_attr_get_payload(tb[RTA_PREFSRC]);
-    cout << "Prefsrc= " << inet6_ntoa(*addr) << endl;
+    cout << "\tPrefsrc= " << inet6_ntoa(*addr);
   }
   if (tb[RTA_GATEWAY]) {
     struct in6_addr *addr = (in6_addr *)mnl_attr_get_payload(tb[RTA_GATEWAY]);
-    cout << "gw= " << inet6_ntoa(*addr) << endl;
+    cout << "\tgw= " << inet6_ntoa(*addr);
   }
   if (tb[RTA_PRIORITY]) {
-    cout << "Prio= " << mnl_attr_get_u32(tb[RTA_PRIORITY]) << endl;
+    cout << "\tPrio= " << mnl_attr_get_u32(tb[RTA_PRIORITY]);
   }
   if (tb[RTA_METRICS]) {
     int i;
@@ -111,7 +114,7 @@ void IProute::display_attr_ipv6(struct nlattr *tb[]) {
 
     for (i = 0; i < RTAX_MAX; i++) {
       if (tbx[i]) {
-        cout << "Metrics[" << i << "]=" << mnl_attr_get_u32(tbx[i]) << endl;
+        cout << "\tMetrics[" << i << "]=" << mnl_attr_get_u32(tbx[i]);
       }
     }
   }
@@ -193,7 +196,7 @@ int IProute::data_ipv6_attr_cb(const struct nlattr *attr, void *data) {
 int IProute::data_cb_showIproutes(const struct nlmsghdr *nlh, void *data) {
   struct nlattr *tb[RTA_MAX + 1] = {};
   struct rtmsg *rm = (rtmsg *)mnl_nlmsg_get_payload(nlh);
-  cout << "Family="
+  cout << "\tFamily="
        << ((rm->rtm_family == AF_INET)
                ? "IPv4"
                : "IPv6"); // protocol family = AF_INET | AF_INET6
@@ -220,4 +223,204 @@ int IProute::data_cb_showIproutes(const struct nlmsghdr *nlh, void *data) {
 
   cout << endl;
   return MNL_CB_OK;
+}
+
+
+
+void IProute::addIpRoute(string ifName, string destAddr, string Cidr,string gateWay) {
+  struct mnl_socket *nl;
+  char buf[MNL_SOCKET_BUFFER_SIZE];
+  struct nlmsghdr *nlh;
+  struct rtmsg *rtm;
+  uint32_t prefix, seq, portid;
+  union {
+    in_addr_t ip;
+    struct in6_addr ip6;
+  } dst;
+  union {
+    in_addr_t ip;
+    struct in6_addr ip6;
+  } gw;
+  int iface, ret, family = AF_INET;
+  const char *if_name = ifName.c_str();
+  const char *dest_addr = destAddr.c_str();
+  const char *gate_way = gateWay.c_str();
+  const char *cidr = Cidr.c_str();
+
+  // cout<<"if_name="<<if_name<<endl;
+  // cout<<"dest_addr="<<dest_addr<<endl;
+  // cout<<"gate_way="<<gate_way<<endl;
+  // cout<<"cidr="<<cidr<<endl;
+
+  iface = if_nametoindex(if_name);
+  if (iface == 0) {
+    perror("if_nametoindex");
+    exit(EXIT_FAILURE);
+  }
+
+  if (!inet_pton(AF_INET, dest_addr, &dst)) {
+    if (!inet_pton(AF_INET6, dest_addr, &dst)) {
+      perror("inet_pton");
+      exit(EXIT_FAILURE);
+    }
+    family = AF_INET6;
+  }
+
+  if (sscanf(cidr, "%u", &prefix) == 0) {
+    perror("sscanf");
+    exit(EXIT_FAILURE);
+  }
+
+  if (!(gateWay.empty()) && !inet_pton(family, gate_way, &gw)) {
+    perror("inet_pton");
+    exit(EXIT_FAILURE);
+  }
+
+  nlh = mnl_nlmsg_put_header(buf);
+  nlh->nlmsg_type = RTM_NEWROUTE;
+  nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_ACK;
+  nlh->nlmsg_seq = seq = time(NULL);
+  rtm = (rtmsg *)mnl_nlmsg_put_extra_header(nlh, sizeof(struct rtmsg));
+  rtm->rtm_family = family;
+  rtm->rtm_dst_len = prefix;
+  rtm->rtm_src_len = 0;
+  rtm->rtm_tos = 0;
+  rtm->rtm_protocol = RTPROT_STATIC;
+  rtm->rtm_table = RT_TABLE_MAIN;
+  rtm->rtm_type = RTN_UNICAST;
+  rtm->rtm_scope = (gateWay.empty()) ? RT_SCOPE_LINK : RT_SCOPE_UNIVERSE;
+  rtm->rtm_flags = 0;
+
+  if (family == AF_INET)
+    mnl_attr_put_u32(nlh, RTA_DST, dst.ip);
+  else
+    mnl_attr_put(nlh, RTA_DST, sizeof(struct in6_addr), &dst);
+
+  mnl_attr_put_u32(nlh, RTA_OIF, iface);
+  if (!(gateWay.empty())) {
+    if (family == AF_INET)
+      mnl_attr_put_u32(nlh, RTA_GATEWAY, gw.ip);
+    else {
+      mnl_attr_put(nlh, RTA_GATEWAY, sizeof(struct in6_addr), &gw.ip6);
+    }
+  }
+
+  nl = mnl_socket_open(NETLINK_ROUTE);
+  if (nl == NULL) {
+    perror("mnl_socket_open");
+    exit(EXIT_FAILURE);
+  }
+
+  if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+    perror("mnl_socket_bind");
+    exit(EXIT_FAILURE);
+  }
+  portid = mnl_socket_get_portid(nl);
+
+  if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
+    perror("mnl_socket_sendto");
+    exit(EXIT_FAILURE);
+  }
+
+  ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+  if (ret < 0) {
+    perror("mnl_socket_recvfrom");
+    exit(EXIT_FAILURE);
+  }
+
+  ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
+  if (ret < 0) {
+    perror("ERROR:");
+    exit(EXIT_FAILURE);
+  }else if(ret==0){
+  	cout<<"SUCCESS:Route has been added"<<endl;
+  }
+
+  mnl_socket_close(nl);
+}
+
+
+void IProute::removeIpRoute(string ifName,string destAddr,string gateWay){
+
+ struct mnl_socket *nl;
+  char buf[MNL_SOCKET_BUFFER_SIZE];
+  struct nlmsghdr *nlh;
+  struct rtmsg *rtm;
+  uint32_t prefix, seq, portid;
+  union {
+    in_addr_t ip;
+    struct in6_addr ip6;
+  } dst;
+  union {
+    in_addr_t ip;
+    struct in6_addr ip6;
+  } gw;
+  int iface, ret, family = AF_INET;
+  const char *if_name = ifName.c_str();
+  const char *dest_addr = destAddr.c_str();
+  const char *gate_way = gateWay.c_str();
+  // const char *cidr = Cidr.c_str();
+
+
+  nlh = mnl_nlmsg_put_header(buf);
+  nlh->nlmsg_type = RTM_DELROUTE;
+  nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+  nlh->nlmsg_seq = seq = time(NULL);
+  rtm = (rtmsg *)mnl_nlmsg_put_extra_header(nlh, sizeof(struct rtmsg));
+  rtm->rtm_family = family;
+  rtm->rtm_dst_len = prefix;
+  rtm->rtm_src_len = 0;
+  rtm->rtm_tos = 0;
+  rtm->rtm_protocol = RTPROT_STATIC;
+  rtm->rtm_table = RT_TABLE_MAIN;
+  rtm->rtm_type = RTN_UNICAST;
+  rtm->rtm_scope = RT_SCOPE_UNIVERSE;
+  rtm->rtm_flags = 0;
+
+  if (family == AF_INET)
+    mnl_attr_put_u32(nlh, RTA_DST, dst.ip);
+  else
+    mnl_attr_put(nlh, RTA_DST, sizeof(struct in6_addr), &dst);
+
+  mnl_attr_put_u32(nlh, RTA_OIF, iface);
+  if (!(gateWay.empty())) {
+    if (family == AF_INET)
+      mnl_attr_put_u32(nlh, RTA_GATEWAY, gw.ip);
+    else {
+      mnl_attr_put(nlh, RTA_GATEWAY, sizeof(struct in6_addr), &gw.ip6);
+    }
+  }
+
+  nl = mnl_socket_open(NETLINK_ROUTE);
+  if (nl == NULL) {
+    perror("mnl_socket_open");
+    exit(EXIT_FAILURE);
+  }
+
+  if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+    perror("mnl_socket_bind");
+    exit(EXIT_FAILURE);
+  }
+  portid = mnl_socket_get_portid(nl);
+
+  if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
+    perror("mnl_socket_sendto");
+    exit(EXIT_FAILURE);
+  }
+
+  ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+  if (ret < 0) {
+    perror("mnl_socket_recvfrom");
+    exit(EXIT_FAILURE);
+  }
+
+  ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
+  if (ret < 0) {
+    perror("ERROR:");
+    exit(EXIT_FAILURE);
+  }else if(ret==0){
+  	cout<<"SUCCESS:Route has been deleted"<<endl;
+  }
+
+  mnl_socket_close(nl);	
 }
