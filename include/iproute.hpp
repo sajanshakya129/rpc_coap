@@ -13,6 +13,8 @@ private:
 
 public:
   static int data_cb_showIproutes(const struct nlmsghdr *, void *);
+  void addIpRoute(string,string,string,string);
+  void removeIpRoute(string, string,string);
 };
 
 

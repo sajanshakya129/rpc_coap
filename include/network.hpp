@@ -19,10 +19,10 @@ private:
 
 
 public:
-  void showIpAddr(string, bool msgFmt);
-  void showIpLinks(string, bool msgFmt);
-  void setIpLink(string, string, bool msgFmt);
-  void showIpRoute(string, bool msgFmt);
+  void showIpAddr(string, bool);
+  void showIpLinks(string, bool);
+  void setIpLink(string, string, bool);
+  void showIpRoute(string, bool);
 };
 
 #endif

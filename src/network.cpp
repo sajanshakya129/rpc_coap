@@ -7,17 +7,13 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "constants.hpp"
 #include "iproute.hpp"
 #include "network.hpp"
 
+enum cb_identifier iden;
 using namespace std;
-// identifiers for main functions
-enum cb_identifier {
-  SHOW_IP_ADDR = 1,
-  SHOW_IP_LINK,
-  SET_IP_LINK,
-  SHOW_IP_ROUTE
-} iden;
+
 
 //-------Beginnning of Private Methods------------------------
 // function used by showIpAddr, showIpLinks, showIpRoute
@@ -92,7 +88,8 @@ void Network::socket(string ipType, int nlMsgType, int flags, int cbFuncIden,
     TODO:break socket function into small functions, find common between two
     socket functions overloaded
     **/
-void Network::socket(int nlMsgType, int reqFlags,const char *devName, string linkState, bool msgFmt) {
+void Network::socket(int nlMsgType, int reqFlags, const char *devName,
+                     string linkState, bool msgFmt) {
   struct mnl_socket *nl;
   unsigned int seq, portid, change = 0, flags = 0;
 
@@ -316,8 +313,7 @@ void Network::showIpLinks(string ipType, bool msgFmt) {
 
 void Network::setIpLink(string linkName, string linkState, bool msgFmt) {
   const char *lName = linkName.c_str();
-  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, lName, linkState,
-         msgFmt);
+  socket(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK, lName, linkState, msgFmt);
 }
 
 void Network::showIpRoute(string ipType, bool msgFmt) {
