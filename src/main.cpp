@@ -101,3 +101,19 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+// int main(int argc, char* argv[])
+// { struct request *req;
+//   unsigned char     get_method = 1;
+//   req->src->address="0.0.0.0";
+//   req->src->port=0;
+//   req->src->family=INET;
+//   req->dest->address=127.0.0.1;
+//   req->dest->port=5683;
+//   req->dest->family=INET6;
+//   req->api="/hello";
+//   req->hdr->type=COAP_MESSAGE_CON;
+//   req->hdr->code=get_method;
+//   sendCOAPRequest(req)
+//   return 0;
+// }
